@@ -1,4 +1,6 @@
-Scriptname SOLGSUtil extends Quest  
+Scriptname SOLGSUtil extends Quest
+
+sslBaseAnimation CurrentAnimation
 
 Function QuickSex(Actor follower, Actor speaker)
 	if (SexLab.GetGender(speaker) == 1) ; female
@@ -9,7 +11,7 @@ Function QuickSex(Actor follower, Actor speaker)
 EndFunction
 
 Function _restartFollowerQuest()
-	if (SOLGetSexFollowers.isRunning())
+	if (SOLGetSexFollowers.IsRunning())
 		SOLGetSexFollowers.Stop()
 	endif
 	SOLGetSexFollowers.Start()
@@ -38,7 +40,16 @@ ReferenceAlias[] Function _getFemaleRefs()
 EndFunction
 
 Function Moreway(Actor player, Actor speaker)
+	self._moreway(player, speaker)
+EndFunction
+
+Function MorewayOral(Actor player, Actor speaker)
+	self._moreway(player, speaker, true)
+EndFunction
+
+Function _moreway(Actor player, Actor speaker, bool oral = false)
 	self._restartFollowerQuest()
+	Utility.Wait(0.5)
 
 	Actor[] males = new Actor[5]
 	Actor[] females = new Actor[5]
@@ -67,29 +78,146 @@ Function Moreway(Actor player, Actor speaker)
 		endif
 	endwhile
 	
-	sslBaseAnimation[] anims = SexLab.GetAnimationsByTags(2, "MF", "aggressive,Oral,LeadIn", true)
-	self.doSex(player, speaker, anims)
-
+	sslBaseAnimation[] anims
+	if (oral)
+		anims = SexLab.GetAnimationsByTags(2, "MF,Oral", "aggressive", true)
+	else
+		anims = SexLab.GetAnimationsByTags(2, "MF", "aggressive,Oral,LeadIn", true)
+	endif
+	
+	int tid
+	tid = self.doSex(player, speaker, anims, none, true)
+	sslBaseAnimation startAnim = SexLab.GetController(tid).Animation
+	
+	sslThreadController controller
 	n = 5
 	while n
 		n -= 1
 		if (males[n] && females[n])
-			Utility.Wait(0.5)
-			doSex(males[n], females[n], anims)
+			Utility.Wait(5.0)
+			tid = doSex(males[n], females[n], anims, startAnim)
+			controller = SexLab.GetController(tid)
+			controller.AutoAdvance = false
+		endif
+	endwhile
+	CurrentAnimation = startAnim
+	RegisterForSingleUpdate(1.0)
+EndFunction
+
+Event OnUpdate()
+	Actor player = Game.GetPlayer()
+	if (player.HasKeywordString("SexLabActive"))
+		sslThreadController controller = SexLab.GetPlayerController()
+		sslBaseAnimation anim = controller.Animation
+		if (anim != CurrentAnimation)
+			self._syncEvent("Animation", 0.5)
+		endif
+		RegisterForSingleUpdate(3.0)
+	else
+		; stop OnUpdate
+	endif
+EndEvent
+
+Event StageStartEventSOLGS(int tid, bool HasPlayer)
+	self.Log("detect stage start")
+	self._syncEvent("Animation", 0.5)
+EndEvent
+
+Event AnimationChangeEventSOLGS(int tid, bool HasPlayer)
+	self.Log("detect animation change")
+	self._syncEvent("Animation", 0.5)
+EndEvent
+
+Event OrgasmEndEventSOLGS(int tid, bool HasPlayer)
+	self.Log("detect orgasm end")
+	self._syncEvent("OrgasmEnd", 0.5)
+EndEvent
+
+Event AnimationEndEventSOLGS(int tid, bool HasPlayer)
+	self.Log("detect animation end")
+	self._syncEvent("End", 0.5)
+EndEvent
+
+Function _syncEvent(string eventName, float waitTime)
+	sslThreadController playerController = SexLab.GetPlayerController()
+	sslThreadController actorController
+	ReferenceAlias[] malerefs = self._getMaleRefs()
+	int n = 5
+	
+	while n
+		n -= 1
+		if (malerefs[n])
+			Actor act = malerefs[n].GetActorRef()
+			if (act && act.HasKeywordString("SexLabActive"))
+				Utility.Wait(waitTime)
+				actorController = SexLab.GetActorController(act)
+				if (eventName == "Animation")
+					self._syncSexAnimation(actorController, playerController)
+				elseif (eventName == "OrgasmEnd")
+					actorController.SendThreadEvent("OrgasmEnd") ; for Aroused
+				elseif (eventName == "End")
+					; self._sendOrgasm(actorController)
+					actorController.EndAnimation()
+				endif
+			endif
 		endif
 	endwhile
 EndFunction
 
+Function _sendOrgasm(sslThreadController controller)
+	if (controller.Animation.IsSexual())
+		controller.Positions[0].SetFactionRank(sla_Arousal, 0)
+	endif
+	controller.Positions[1].SetFactionRank(sla_Arousal, 0)
+EndFunction
 
-Function doSex(Actor act1, Actor act2, sslBaseAnimation[] anim)
+Function _syncSexAnimation(sslThreadController npcCtrl, sslThreadController pcCtrl)
+	int pcAnimIndex = pcCtrl.Animations.Find(pcCtrl.Animation)
+	int npcAnimIndex = npcCtrl.Animations.Find(npcCtrl.Animation)
+	
+	if (pcAnimIndex != npcAnimIndex)
+		npcCtrl.SetAnimation(pcAnimIndex)
+		npcCtrl.SendThreadEvent("AnimationChange")
+		npcCtrl.RegisterForSingleUpdate(0.2)
+	elseif (pcCtrl.Stage != npcCtrl.Stage)
+		npcCtrl.GoToStage(pcCtrl.Stage)
+	endif
+EndFunction
+
+
+int Function doSex(Actor act1, Actor act2, sslBaseAnimation[] anim, sslBaseAnimation startAnim = none, bool hook = false)
 	Actor[] sexActors = SexLabUtil.MakeActorArray(act1, act2)
 	sexActors = SexLab.SortActors(sexActors)
 	
 	sslThreadModel Thread = SexLab.NewThread()
 	Thread.AddActors(sexActors)
 	Thread.SetAnimations(anim)
+	if (startAnim)
+		Thread.SetStartingAnimation(startAnim)
+	endif
 	Thread.DisableLeadIn()
-	Thread.StartThread()
+	
+	if (hook)
+		Thread.SetHook("SOLGS")
+		RegisterForModEvent("HookStageStart_SOLGS", "StageStartEventSOLGS")
+		RegisterForModEvent("HookAnimationChange_SOLGS", "AnimationChangeEventSOLGS")
+		RegisterForModEvent("HookAnimationEnd_SOLGS", "AnimationEndEventSOLGS")
+		RegisterForModEvent("HookOrgasmEnd_SOLGS", "OrgasmEndEventSOLGS")
+	endif
+	
+	if Thread.StartThread()
+		return Thread.tid
+	endif
+	return -1
+EndFunction
+
+Function Log(String msg)
+	; bool debugLogFlag = true
+	bool debugLogFlag = false
+
+	if (debugLogFlag)
+		debug.trace("[SSLSyncSex] " + msg)
+	endif
 EndFunction
 
 SexLabFramework Property SexLab  Auto  
@@ -105,3 +233,5 @@ ReferenceAlias Property Female2  Auto
 ReferenceAlias Property Female3  Auto  
 ReferenceAlias Property Female4  Auto  
 ReferenceAlias Property Female5  Auto  
+
+Faction Property sla_Arousal  Auto  
