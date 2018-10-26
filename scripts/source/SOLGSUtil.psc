@@ -95,13 +95,23 @@ Function _moreway(Actor player, Actor speaker, bool oral = false)
 		n -= 1
 		if (males[n] && females[n])
 			Utility.Wait(5.0)
+			self._moveNearPlayer(player, males[n])
+			self._moveNearPlayer(player, females[n])
+			Utility.Wait(0.5)
 			tid = doSex(males[n], females[n], anims, startAnim)
+			debug.notification(males[n].GetLeveledActorBase().GetName() + " x " + females[n].GetLeveledActorBase().GetName())
 			controller = SexLab.GetController(tid)
 			controller.AutoAdvance = false
 		endif
 	endwhile
 	CurrentAnimation = startAnim
 	RegisterForSingleUpdate(1.0)
+EndFunction
+
+Function _moveNearPlayer(Actor player, Actor act)
+	if (act.GetDistance(player) > 500)
+		act.MoveTo(player)
+	endif
 EndFunction
 
 Event OnUpdate()
