@@ -119,6 +119,8 @@ Event OnUpdate()
 	if (player.HasKeywordString("SexLabActive"))
 		sslThreadController controller = SexLab.GetPlayerController()
 		sslBaseAnimation anim = controller.Animation
+		
+		; self.Log("now: " + anim + ", prev: " + CurrentAnimation)
 		if (anim != CurrentAnimation)
 			self._syncEvent("Animation", 0.5)
 		endif
@@ -182,11 +184,12 @@ Function _sendOrgasm(sslThreadController controller)
 EndFunction
 
 Function _syncSexAnimation(sslThreadController npcCtrl, sslThreadController pcCtrl)
-	int pcAnimIndex = pcCtrl.Animations.Find(pcCtrl.Animation)
-	int npcAnimIndex = npcCtrl.Animations.Find(npcCtrl.Animation)
+	sslBaseAnimation pcAnim = pcCtrl.Animation
+	sslBaseAnimation npcAnim = npcCtrl.Animation
 	
-	if (pcAnimIndex != npcAnimIndex)
-		npcCtrl.SetAnimation(pcAnimIndex)
+	; self.Log("PC: " + pcAnim + ", NPC: " + npcAnim)
+	if (pcAnim != npcAnim)
+		npcCtrl.SetAnimation(npcCtrl.Animations.Find(pcAnim))
 		npcCtrl.SendThreadEvent("AnimationChange")
 		npcCtrl.RegisterForSingleUpdate(0.2)
 	elseif (pcCtrl.Stage != npcCtrl.Stage)
