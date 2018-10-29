@@ -2,7 +2,7 @@ Scriptname SOLGSSync extends ReferenceAlias
 
 Event OnCellLoad()
 	Quest qst = self.GetOwningQuest()
-	Utility.Wait(3)
+	Utility.Wait(10)
 	qst.Stop()
 	qst.Start()
 	SOLGetSex.Stop()
