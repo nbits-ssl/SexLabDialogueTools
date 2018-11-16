@@ -10,6 +10,41 @@ Function QuickSex(Actor follower, Actor speaker)
 	endif
 EndFunction
 
+Function QuickOral(Actor follower, Actor speaker)
+	Actor[] actors = new Actor[2]
+	
+	if (SexLab.GetGender(speaker) == 1) ; female
+		actors[0] = speaker
+		actors[1] = follower
+	else
+		actors[0] = follower
+		actors[1] = speaker
+	endif
+	
+	sslBaseAnimation[] anims = SexLab.GetAnimationsByTags(2, "MF,Oral", "aggressive", true)
+	self._quickSex(actors, anims)
+EndFunction
+
+; code from SexLab's StartSex with disable beduse, disable leadin, SortActors for fm
+int function _quickSex(Actor[] Positions, sslBaseAnimation[] Anims, Actor Victim = None, Actor CenterOn = None)
+	sslThreadModel Thread = SexLab.NewThread()
+	if !Thread
+		return -1
+	elseIf !Thread.AddActors(SexLab.SortActors(Positions), Victim)
+		return -1
+	endif
+	Thread.SetAnimations(Anims)
+	Thread.DisableBedUse(true)
+	Thread.DisableLeadIn()
+	Thread.DisableRagdollEnd()
+	Thread.CenterOnObject(CenterOn)
+	
+	if Thread.StartThread()
+		return Thread.tid
+	endif
+	return -1
+EndFunction
+
 Function _restartFollowerQuest()
 	if (SOLGetSexFollowers.IsRunning())
 		SOLGetSexFollowers.Stop()

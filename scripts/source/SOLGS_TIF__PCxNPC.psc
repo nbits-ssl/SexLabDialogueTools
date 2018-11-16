@@ -6,7 +6,7 @@ Scriptname SOLGS_TIF__PCxNPC Extends TopicInfo Hidden
 Function Fragment_0(ObjectReference akSpeakerRef)
 Actor akSpeaker = akSpeakerRef as Actor
 ;BEGIN CODE
-(self.GetOwningQuest() as SOLGSUtil).QuickSex(Game.GetPlayer().GetActorRef(), akSpeaker)
+(self.GetOwningQuest() as SOLGSUtil).QuickSex(Game.GetPlayer(), akSpeaker)
 ;END CODE
 EndFunction
 ;END FRAGMENT
