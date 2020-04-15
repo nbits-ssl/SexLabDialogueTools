@@ -2,22 +2,22 @@ Scriptname SOLGSUtil extends Quest
 
 sslBaseAnimation CurrentAnimation
 
-Function QuickSex(Actor follower, Actor speaker)
+Function QuickSex(Actor player, Actor speaker)
 	if (SexLab.GetGender(speaker) == 1) ; female
-		SexLab.QuickStart(speaker, follower)
+		SexLab.QuickStart(speaker, player)
 	else
-		SexLab.QuickStart(follower, speaker)
+		SexLab.QuickStart(player, speaker)
 	endif
 EndFunction
 
-Function QuickOral(Actor follower, Actor speaker)
+Function QuickOral(Actor player, Actor speaker)
 	Actor[] actors = new Actor[2]
 	
 	if (SexLab.GetGender(speaker) == 1) ; female
 		actors[0] = speaker
-		actors[1] = follower
+		actors[1] = player
 	else
-		actors[0] = follower
+		actors[0] = player
 		actors[1] = speaker
 	endif
 	
